@@ -84,9 +84,37 @@ If you use environment variables (like `GEMINI_API_KEY`):
 3. Ensure all dependencies are in `package.json`
 
 ### Deployment Not Triggering
-1. Verify GitHub integration in Vercel dashboard
-2. Check that you're pushing to the correct branch
-3. Ensure the remote is connected to Vercel
+
+**If Vercel is not auto-deploying from GitHub pushes:**
+
+1. **Check Vercel Dashboard GitHub Integration:**
+   - Go to https://vercel.com/dashboard
+   - Select your project: **socon**
+   - Navigate to **Settings** → **Git**
+   - Verify the repository is connected to: `mrmoe28/eko-solar-distribution`
+   - Ensure **Production Branch** is set to `master`
+
+2. **If repository is NOT connected:**
+   - Click **"Connect Git Repository"** or **"Change Git Repository"**
+   - Select `mrmoe28/eko-solar-distribution` from the list
+   - Confirm the branch is `master`
+   - Save the changes
+
+3. **If repository IS connected but still not deploying:**
+   - Disconnect and reconnect the repository
+   - Check GitHub webhook status in Vercel dashboard
+   - Verify you're pushing to the correct remote: `origin` (https://github.com/mrmoe28/eko-solar-distribution.git)
+
+4. **Manual Redeploy (Quick Fix):**
+   - In Vercel Dashboard → **Deployments** tab
+   - Click **"Redeploy"** on the latest deployment
+   - This will deploy the latest code from GitHub
+
+5. **Verify Git Remote:**
+   ```bash
+   git remote -v
+   # Should show: origin → https://github.com/mrmoe28/eko-solar-distribution.git
+   ```
 
 ### Quick Commands Reference
 ```bash
