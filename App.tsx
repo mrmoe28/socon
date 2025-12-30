@@ -2,11 +2,19 @@ import React, { useState, useEffect, useRef, Fragment } from 'react';
 import { motion, useScroll, useTransform, useMotionValue, useSpring, AnimatePresence } from 'framer-motion';
 import { 
   ArrowRight, 
+  Box, 
   Truck, 
   Clock, 
+  Zap, 
   ShieldCheck, 
-  Menu
+  Menu, 
+  X, 
+  Wand2, 
+  Upload, 
+  Loader2,
+  Download
 } from 'lucide-react';
+import { editImageWithGemini } from './services/geminiService';
 
 // --- Assets (Custom Industrial SVGs as Fallbacks) ---
 const svgWire = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cdefs%3E%3ClinearGradient id='gradR' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238B0000'/%3E%3Cstop offset='100%25' stop-color='%23FF4500'/%3E%3C/linearGradient%3E%3ClinearGradient id='gradB' x1='0%25' y1='100%25' x2='100%25' y2='0%25'%3E%3Cstop offset='0%25' stop-color='%23000'/%3E%3Cstop offset='100%25' stop-color='%23333'/%3E%3C/linearGradient%3E%3Cfilter id='shadow'%3E%3CfeDropShadow dx='2' dy='4' stdDeviation='4' flood-opacity='0.5'/%3E%3C/filter%3E%3C/defs%3E%3Ccircle cx='90' cy='110' r='55' fill='none' stroke='url(%23gradB)' stroke-width='24' filter='url(%23shadow)'/%3E%3Ccircle cx='110' cy='90' r='55' fill='none' stroke='url(%23gradR)' stroke-width='24' filter='url(%23shadow)'/%3E%3C/svg%3E`;
@@ -254,6 +262,7 @@ const Navbar = () => {
         
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
           <a href="#products" className="hover:text-white transition-colors">INVENTORY</a>
+          <a href="#lab" className="hover:text-white transition-colors">AI LAB</a>
           <a href="#benefits" className="hover:text-white transition-colors">LOGISTICS</a>
           <button className="bg-white text-black px-5 py-2 font-bold hover:bg-zinc-200 transition-colors skew-x-[-6deg]">
             <span className="skew-x-[6deg] inline-block">PORTAL LOGIN</span>
@@ -704,6 +713,182 @@ const InventorySection = () => {
   );
 };
 
+// --- GEMINI AI FEATURE SECTION ---
+
+const DesignLab = () => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [resultImage, setResultImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      setResultImage(null); // Reset previous result
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      setResultImage(null);
+    }
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleGenerate = async () => {
+    if (!selectedFile || !prompt) return;
+
+    setIsProcessing(true);
+    try {
+      const base64 = await fileToBase64(selectedFile);
+      const editedImage = await editImageWithGemini(base64, prompt);
+      setResultImage(editedImage);
+    } catch (err) {
+      alert("Failed to process image. Please try again.");
+      console.error(err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <section id="lab" className="py-24 bg-black relative border-y border-zinc-800">
+      <div className="absolute inset-0 bg-zinc-900/50" />
+      <div className="max-w-7xl mx-auto px-6 relative z-10">
+        <div className="flex flex-col md:flex-row gap-12 items-start">
+          
+          <div className="md:w-1/3">
+            <div className="flex items-center gap-2 text-industrial-accent mb-4">
+              <Wand2 className="w-5 h-5" />
+              <span className="font-mono text-sm tracking-wider">BETA FEATURE</span>
+            </div>
+            <h2 className="text-4xl font-black text-white mb-6">SITE VISUALIZER</h2>
+            <p className="text-zinc-400 mb-8">
+              Need to show a client how a mount looks on their specific roof type? Or visualize wiring paths? Upload a site photo and use our AI to visualize adjustments before you install.
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">1. Upload Site Photo</label>
+                <div 
+                  className="border border-dashed border-zinc-700 bg-zinc-900/50 rounded-lg p-8 text-center cursor-pointer hover:border-industrial-accent hover:bg-zinc-800 transition-all"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                >
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    onChange={handleFileChange} 
+                    accept="image/*"
+                  />
+                  <Upload className="w-8 h-8 text-zinc-500 mx-auto mb-3" />
+                  <p className="text-sm text-zinc-400">
+                    {selectedFile ? selectedFile.name : "Click or drag to upload"}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">2. Describe Adjustment</label>
+                <textarea 
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="e.g., 'Add black solar rails to the roof' or 'Highlight the conduit path in red'"
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-white text-sm focus:border-industrial-accent focus:ring-1 focus:ring-industrial-accent outline-none min-h-[100px]"
+                />
+              </div>
+
+              <button 
+                onClick={handleGenerate}
+                disabled={!selectedFile || !prompt || isProcessing}
+                className={`w-full py-4 font-bold flex items-center justify-center gap-2 transition-all ${
+                  !selectedFile || !prompt || isProcessing 
+                    ? "bg-zinc-800 text-zinc-500 cursor-not-allowed" 
+                    : "bg-white text-black hover:bg-zinc-200"
+                }`}
+              >
+                {isProcessing ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> PROCESSING...</>
+                ) : (
+                  <><Zap className="w-4 h-4" /> GENERATE PREVIEW</>
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="md:w-2/3 w-full bg-zinc-900 rounded-lg border border-zinc-800 aspect-video flex items-center justify-center overflow-hidden relative">
+            {!previewUrl && !resultImage && (
+              <div className="text-center">
+                <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Box className="w-8 h-8 text-zinc-600" />
+                </div>
+                <p className="text-zinc-600 font-mono text-sm">PREVIEW AREA</p>
+              </div>
+            )}
+            
+            {previewUrl && !resultImage && !isProcessing && (
+              <img src={previewUrl} alt="Original" className="w-full h-full object-contain" />
+            )}
+
+            {isProcessing && (
+              <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20 backdrop-blur-sm">
+                <div className="w-16 h-1 bg-zinc-800 overflow-hidden rounded-full mb-4">
+                  <motion.div 
+                    className="h-full bg-industrial-accent"
+                    initial={{ width: "0%" }}
+                    animate={{ width: "100%" }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                </div>
+                <p className="text-zinc-400 font-mono text-xs animate-pulse">AI IS EDITING PIXELS...</p>
+              </div>
+            )}
+
+            {resultImage && (
+              <div className="relative w-full h-full group">
+                <img src={resultImage} alt="AI Result" className="w-full h-full object-contain" />
+                <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <a href={resultImage} download="eko-viz-result.png" className="bg-industrial-accent text-white p-3 rounded-full shadow-lg flex items-center gap-2 hover:bg-orange-600 transition-colors">
+                        <Download className="w-4 h-4" />
+                    </a>
+                </div>
+                <div className="absolute top-4 left-4 bg-black/50 backdrop-blur text-white text-xs px-2 py-1 rounded">
+                    AI GENERATED PREVIEW
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const BenefitsSection = () => {
   return (
     <section id="benefits" className="py-24 bg-industrial-900 overflow-hidden">
@@ -771,7 +956,7 @@ const BenefitsSection = () => {
                   <span className="text-green-500 text-sm font-bold flex items-center gap-1">● READY FOR PICKUP</span>
                 </div>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-zinc-800 rounded flex items-center justify-center p-2">
                         <ImageWithFallback src={IMAGES.rail.src} fallback={IMAGES.rail.fallback} imageKey={IMAGES.rail.key} alt="rail" className="w-full h-full object-contain" />
                     </div>
@@ -850,6 +1035,7 @@ export default function App() {
       <Hero />
       <StatsBand />
       <InventorySection />
+      <DesignLab />
       <BenefitsSection />
       <CTA />
       <Footer />
