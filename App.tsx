@@ -332,19 +332,6 @@ const Hero = () => {
              className="absolute top-20 right-0 w-[500px] drop-shadow-2xl z-20 grayscale hover:grayscale-0 transition-all duration-500"
            />
            
-           {/* 2. Wire Coil - Background element */}
-           <ImageWithFallback 
-             style={{ y: y3, rotate: rotateReverse }}
-             initial={{ opacity: 0, scale: 0.8 }}
-             animate={{ opacity: 1, scale: 1 }}
-             transition={{ delay: 0.2 }}
-             src={IMAGES.wire.src} 
-             fallback={IMAGES.wire.fallback}
-             imageKey={IMAGES.wire.key}
-             alt="PV Wire" 
-             className="absolute top-0 right-40 w-[300px] drop-shadow-xl z-10 opacity-60 blur-[1px]"
-           />
-
            {/* 3. Inverter - New Hero Feature */}
            <ImageWithFallback 
              style={{ y: y2 }}
@@ -355,18 +342,6 @@ const Hero = () => {
              className="absolute bottom-40 left-0 w-[240px] drop-shadow-2xl z-30"
            />
            
-           {/* 4. Bolt - Floating particle */}
-           <ImageWithFallback 
-             initial={{ scale: 0.8, opacity: 0 }}
-             animate={{ scale: 1, opacity: 1 }}
-             transition={{ delay: 0.5 }}
-             src={IMAGES.bolt.src} 
-             fallback={IMAGES.bolt.fallback}
-             imageKey={IMAGES.bolt.key}
-             alt="T-Bolt" 
-             className="absolute top-10 left-20 w-[120px] drop-shadow-xl z-10 blur-[2px]"
-           />
-
            {/* 5. Mount - Bottom anchor */}
            <ImageWithFallback 
              style={{ y: y1 }}
