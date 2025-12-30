@@ -1,0 +1,790 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, useScroll, useTransform, useMotionValue, useSpring, AnimatePresence } from 'framer-motion';
+import { 
+  ArrowRight, 
+  Box, 
+  Truck, 
+  Clock, 
+  Zap, 
+  ShieldCheck, 
+  Menu, 
+  X, 
+  Wand2, 
+  Upload, 
+  Loader2,
+  Download
+} from 'lucide-react';
+import { editImageWithGemini } from './services/geminiService';
+
+// --- Assets (Custom Industrial SVGs as Fallbacks) ---
+const svgWire = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cdefs%3E%3ClinearGradient id='gradR' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%238B0000'/%3E%3Cstop offset='100%25' stop-color='%23FF4500'/%3E%3C/linearGradient%3E%3ClinearGradient id='gradB' x1='0%25' y1='100%25' x2='100%25' y2='0%25'%3E%3Cstop offset='0%25' stop-color='%23000'/%3E%3Cstop offset='100%25' stop-color='%23333'/%3E%3C/linearGradient%3E%3Cfilter id='shadow'%3E%3CfeDropShadow dx='2' dy='4' stdDeviation='4' flood-opacity='0.5'/%3E%3C/filter%3E%3C/defs%3E%3Ccircle cx='90' cy='110' r='55' fill='none' stroke='url(%23gradB)' stroke-width='24' filter='url(%23shadow)'/%3E%3Ccircle cx='110' cy='90' r='55' fill='none' stroke='url(%23gradR)' stroke-width='24' filter='url(%23shadow)'/%3E%3C/svg%3E`;
+
+const svgMount = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cdefs%3E%3ClinearGradient id='metal' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23e0e0e0'/%3E%3Cstop offset='50%25' stop-color='%23999'/%3E%3Cstop offset='100%25' stop-color='%23777'/%3E%3C/linearGradient%3E%3Cfilter id='drop'%3E%3CfeDropShadow dx='4' dy='8' stdDeviation='6' flood-opacity='0.4'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M40 160 L160 160 L160 130 L100 130 L100 40 L70 40 L70 130 L40 130 Z' fill='url(%23metal)' filter='url(%23drop)' stroke='%23555' stroke-width='1'/%3E%3Ccircle cx='130' cy='145' r='6' fill='%23333'/%3E%3Ccircle cx='85' cy='60' r='6' fill='%23333'/%3E%3C/svg%3E`;
+
+const svgBolt = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cdefs%3E%3ClinearGradient id='boltGrad' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ccc'/%3E%3Cstop offset='1' stop-color='%23888'/%3E%3C/linearGradient%3E%3Cfilter id='bShadow'%3E%3CfeDropShadow dx='2' dy='4' stdDeviation='3' flood-opacity='0.5'/%3E%3C/filter%3E%3C/defs%3E%3Crect x='85' y='60' width='30' height='100' fill='url(%23boltGrad)' filter='url(%23bShadow)' rx='2'/%3E%3Cpath d='M85 60 L115 60 L115 160 L85 160 Z' fill='none' stroke='%23666' stroke-width='1' opacity='0.5' stroke-dasharray='4 2'/%3E%3Crect x='60' y='40' width='80' height='25' fill='url(%23boltGrad)' filter='url(%23bShadow)' rx='4'/%3E%3C/svg%3E`;
+
+const svgClamp = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cdefs%3E%3ClinearGradient id='clampG' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23bbb'/%3E%3Cstop offset='1' stop-color='%23888'/%3E%3C/linearGradient%3E%3Cfilter id='cShadow'%3E%3CfeDropShadow dx='3' dy='5' stdDeviation='5' flood-opacity='0.4'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M50 80 L50 140 L150 140 L150 80 L130 80 L130 120 L70 120 L70 80 Z' fill='url(%23clampG)' filter='url(%23cShadow)' stroke='%23666' stroke-width='1'/%3E%3Crect x='90' y='60' width='20' height='60' fill='%23555' rx='2'/%3E%3C/svg%3E`;
+
+const svgRail = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200'%3E%3Cdefs%3E%3ClinearGradient id='railG' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23333'/%3E%3Cstop offset='50%25' stop-color='%23111'/%3E%3Cstop offset='100%25' stop-color='%23000'/%3E%3C/linearGradient%3E%3Cfilter id='rShadow'%3E%3CfeDropShadow dx='4' dy='8' stdDeviation='6' flood-opacity='0.6'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M20 80 L380 40 L380 120 L20 160 Z' fill='url(%23railG)' filter='url(%23rShadow)' stroke='%23444' stroke-width='1'/%3E%3Cpath d='M20 80 L380 40' stroke='%23555' stroke-width='2'/%3E%3Crect x='40' y='90' width='300' height='10' fill='%23000' opacity='0.5' transform='skewY(-6)'/%3E%3C/svg%3E`;
+
+const svgInverter = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cdefs%3E%3ClinearGradient id='invG' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23eee'/%3E%3Cstop offset='1' stop-color='%23ccc'/%3E%3C/linearGradient%3E%3Cfilter id='iShadow'%3E%3CfeDropShadow dx='0' dy='10' stdDeviation='10' flood-opacity='0.3'/%3E%3C/filter%3E%3C/defs%3E%3Crect x='40' y='30' width='120' height='140' rx='8' fill='url(%23invG)' filter='url(%23iShadow)'/%3E%3Crect x='50' y='50' width='100' height='60' rx='4' fill='%23111'/%3E%3Ccircle cx='100' cy='140' r='10' fill='%2322c55e'/%3E%3C/svg%3E`;
+
+// Image Configuration
+// To use real images, place files in 'public/' with these names.
+const IMAGES = {
+  wire: { src: '/pv-wire.png', fallback: svgWire },
+  mount: { src: '/roof-mount.png', fallback: svgMount },
+  bolt: { src: '/t-bolt.png', fallback: svgBolt },
+  clamp: { src: '/universal-clamp.png', fallback: svgClamp },
+  rail: { src: '/structural-rail.png', fallback: svgRail },
+  inverter: { src: '/lux-inverter.png', fallback: svgInverter },
+  micro: { src: '/enphase-micro.png', fallback: svgInverter },
+};
+
+// --- Components ---
+
+// Wrapper component to handle image loading errors gracefully
+const ImageWithFallback = ({ src, fallback, alt, className, style, ...props }: any) => {
+  const [imgSrc, setImgSrc] = useState(src);
+  
+  // Reset if prop changes
+  useEffect(() => {
+    setImgSrc(src);
+  }, [src]);
+
+  return (
+    <motion.img 
+      {...props}
+      src={imgSrc}
+      alt={alt}
+      className={className}
+      style={style}
+      onError={() => {
+        if (imgSrc !== fallback) {
+          setImgSrc(fallback);
+        }
+      }}
+    />
+  );
+};
+
+const Navbar = () => {
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 50);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b ${isScrolled ? 'bg-industrial-900/90 backdrop-blur-md border-zinc-800 py-3' : 'bg-transparent border-transparent py-6'}`}>
+      <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-industrial-accent skew-x-[-12deg]" />
+          <span className="text-xl font-bold tracking-tighter text-white">EKO<span className="text-zinc-500">SOLAR</span></span>
+        </div>
+        
+        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
+          <a href="#products" className="hover:text-white transition-colors">INVENTORY</a>
+          <a href="#lab" className="hover:text-white transition-colors">AI LAB</a>
+          <a href="#benefits" className="hover:text-white transition-colors">LOGISTICS</a>
+          <button className="bg-white text-black px-5 py-2 font-bold hover:bg-zinc-200 transition-colors skew-x-[-6deg]">
+            <span className="skew-x-[6deg] inline-block">PORTAL LOGIN</span>
+          </button>
+        </div>
+        
+        <button className="md:hidden text-white">
+          <Menu />
+        </button>
+      </div>
+    </nav>
+  );
+};
+
+const Hero = () => {
+  const { scrollY } = useScroll();
+  const y1 = useTransform(scrollY, [0, 500], [0, 200]);
+  const y2 = useTransform(scrollY, [0, 500], [0, -150]);
+  const y3 = useTransform(scrollY, [0, 500], [0, -80]);
+  const rotate = useTransform(scrollY, [0, 500], [0, 15]);
+  const rotateReverse = useTransform(scrollY, [0, 500], [0, -10]);
+
+  return (
+    <section className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-industrial-900">
+      {/* Background Grid */}
+      <div className="absolute inset-0 bg-grid-pattern bg-[size:40px_40px] opacity-[0.05]" />
+      
+      {/* Radial Gradient */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-industrial-accent/10 rounded-full blur-[120px]" />
+
+      <div className="max-w-7xl mx-auto px-6 w-full relative z-10 grid md:grid-cols-2 gap-12 items-center">
+        <motion.div 
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+        >
+          <div className="inline-block px-3 py-1 border border-industrial-accent/30 text-industrial-accent text-xs font-mono mb-6 bg-industrial-accent/5 backdrop-blur-sm">
+            REGIONAL DISTRIBUTION • SOCAL
+          </div>
+          <h1 className="text-6xl md:text-8xl font-black tracking-tighter leading-[0.9] text-white mb-6">
+            BUILD <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-zinc-200 to-zinc-600">FASTER.</span>
+          </h1>
+          <p className="text-zinc-400 text-lg md:text-xl max-w-md mb-8 leading-relaxed">
+            Stop waiting on shipping. We stock Tier-1 racking, wire, and mounting hardware locally. Same-day will-call for licensed contractors.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button className="bg-industrial-accent text-white px-8 py-4 font-bold flex items-center justify-center gap-2 hover:bg-orange-600 transition-all group">
+              OPEN ACCOUNT <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </button>
+            <button className="border border-zinc-700 text-white px-8 py-4 font-bold hover:bg-zinc-800 transition-all">
+              VIEW INVENTORY
+            </button>
+          </div>
+        </motion.div>
+
+        <div className="relative h-[600px] hidden md:block select-none pointer-events-none">
+           {/* Floating Product Montage - Using ImageWithFallback */}
+           
+           {/* 1. Main Rail - Diagonal across */}
+           <ImageWithFallback 
+             style={{ y: y1, rotate: rotate }}
+             src={IMAGES.rail.src}
+             fallback={IMAGES.rail.fallback}
+             alt="Solar Rail" 
+             className="absolute top-20 right-0 w-[500px] drop-shadow-2xl z-20 grayscale hover:grayscale-0 transition-all duration-500"
+           />
+           
+           {/* 2. Wire Coil - Background element */}
+           <ImageWithFallback 
+             style={{ y: y3, rotate: rotateReverse }}
+             initial={{ opacity: 0, scale: 0.8 }}
+             animate={{ opacity: 1, scale: 1 }}
+             transition={{ delay: 0.2 }}
+             src={IMAGES.wire.src} 
+             fallback={IMAGES.wire.fallback}
+             alt="PV Wire" 
+             className="absolute top-0 right-40 w-[300px] drop-shadow-xl z-10 opacity-60 blur-[1px]"
+           />
+
+           {/* 3. Inverter - New Hero Feature */}
+           <ImageWithFallback 
+             style={{ y: y2 }}
+             src={IMAGES.inverter.src} 
+             fallback={IMAGES.inverter.fallback}
+             alt="LuxPower Inverter" 
+             className="absolute bottom-40 left-0 w-[240px] drop-shadow-2xl z-30"
+           />
+           
+           {/* 4. Bolt - Floating particle */}
+           <ImageWithFallback 
+             initial={{ scale: 0.8, opacity: 0 }}
+             animate={{ scale: 1, opacity: 1 }}
+             transition={{ delay: 0.5 }}
+             src={IMAGES.bolt.src} 
+             fallback={IMAGES.bolt.fallback}
+             alt="T-Bolt" 
+             className="absolute top-10 left-20 w-[120px] drop-shadow-xl z-10 blur-[2px]"
+           />
+
+           {/* 5. Mount - Bottom anchor */}
+           <ImageWithFallback 
+             style={{ y: y1 }}
+             src={IMAGES.mount.src}
+             fallback={IMAGES.mount.fallback}
+             alt="Roof Mount"
+             className="absolute bottom-10 right-20 w-[180px] drop-shadow-2xl z-20 brightness-75"
+           />
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const StatsBand = () => {
+  return (
+    <div className="border-y border-zinc-800 bg-black py-8 overflow-hidden">
+      <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8">
+        {[
+          { label: "YEARS ACTIVE", value: "15+" },
+          { label: "CONTRACTORS", value: "850+" },
+          { label: "SKUS IN STOCK", value: "4.2K" },
+          { label: "PICKUP TIME", value: "< 2HR" },
+        ].map((stat, i) => (
+          <motion.div 
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: i * 0.1 }}
+            className="text-center md:text-left"
+          >
+            <div className="text-3xl md:text-4xl font-black text-white tracking-tighter">{stat.value}</div>
+            <div className="text-xs font-mono text-zinc-500 mt-1">{stat.label}</div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// --- ENHANCED PRODUCT CARD ---
+const ProductCard = ({ 
+  title, 
+  desc, 
+  imgConfig, 
+  specs = [], 
+  size = "normal", 
+  index 
+}: { 
+  title: string, 
+  desc: string, 
+  imgConfig: { src: string, fallback: string }, 
+  specs?: string[], 
+  size?: "normal" | "wide" | "tall", 
+  index: number 
+}) => {
+  const ref = useRef<HTMLDivElement>(null);
+  
+  // Motion values for tilt effect
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  // Smooth out the mouse movement
+  const mouseXSpring = useSpring(x, { stiffness: 300, damping: 30 });
+  const mouseYSpring = useSpring(y, { stiffness: 300, damping: 30 });
+
+  // Transform spring values to rotation degrees
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["7deg", "-7deg"]);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-7deg", "7deg"]);
+  
+  // Parallax sheen effect
+  const sheenX = useTransform(mouseXSpring, [-0.5, 0.5], ["0%", "200%"]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    
+    // Calculate normalized position (-0.5 to 0.5)
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    const xPct = (mouseX / width) - 0.5;
+    const yPct = (mouseY / height) - 0.5;
+    
+    x.set(xPct);
+    y.set(yPct);
+  };
+
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+  };
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 50 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{ duration: 0.6, delay: index * 0.1, ease: "easeOut" }}
+      className={`relative group perspective-[1000px] z-0 hover:z-10 ${
+        size === "wide" ? "md:col-span-2" : size === "tall" ? "md:row-span-2" : ""
+      }`}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      <motion.div
+        style={{ 
+          rotateX, 
+          rotateY, 
+          transformStyle: "preserve-3d" 
+        }}
+        className="relative h-full w-full bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden hover:border-industrial-accent/50 transition-all duration-500 shadow-xl"
+      >
+        {/* Animated Background Grid */}
+        <div className="absolute inset-0 opacity-20 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+        
+        {/* Dynamic Sheen/Glare */}
+        <motion.div 
+            style={{ left: sheenX, opacity: useTransform(x, [-0.5, 0, 0.5], [0.3, 0, 0.3]) }}
+            className="absolute top-0 bottom-0 w-[50%] bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-12 z-10 pointer-events-none"
+        />
+
+        {/* Stock Badge */}
+        <div className="absolute top-4 left-4 z-20" style={{ transform: "translateZ(30px)" }}>
+          <div className="bg-industrial-accent/90 backdrop-blur-sm text-black text-[10px] font-black px-2 py-1 uppercase tracking-widest flex items-center gap-1.5 rounded-sm shadow-lg">
+             <div className="w-1.5 h-1.5 bg-black rounded-full animate-pulse" /> IN STOCK
+          </div>
+        </div>
+
+        {/* Image Area */}
+        <div className="h-64 md:h-[300px] w-full p-8 flex items-center justify-center relative z-10" style={{ transformStyle: "preserve-3d" }}>
+            {/* Ambient Glow */}
+            <motion.div 
+              className="absolute w-40 h-40 bg-industrial-accent/20 rounded-full blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              style={{ 
+                x: useTransform(mouseXSpring, [-0.5, 0.5], [-30, 30]), 
+                y: useTransform(mouseYSpring, [-0.5, 0.5], [-30, 30]),
+                transform: "translateZ(-20px)" 
+              }}
+            />
+            
+            <ImageWithFallback 
+              src={imgConfig.src} 
+              fallback={imgConfig.fallback}
+              alt={title} 
+              className="max-h-[85%] max-w-[85%] object-contain drop-shadow-2xl relative z-20 will-change-transform"
+              style={{ 
+                transform: "translateZ(50px)",
+                scale: useTransform(mouseYSpring, [-0.5, 0.5], [1.1, 1.1]) 
+              }}
+              whileHover={{ scale: 1.15 }}
+              transition={{ type: "spring", stiffness: 200 }}
+            />
+        </div>
+
+        {/* Info Area */}
+        <div 
+          className="absolute bottom-0 left-0 w-full p-6 z-30 bg-gradient-to-t from-zinc-950 via-zinc-900/90 to-transparent pt-12"
+          style={{ transform: "translateZ(40px)" }}
+        >
+          <div className="flex justify-between items-start">
+            <div>
+                <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-industrial-accent transition-colors">
+                    {title}
+                </h3>
+                <p className="text-zinc-400 text-sm line-clamp-2 mb-3 max-w-[90%]">
+                    {desc}
+                </p>
+            </div>
+            <div className="bg-zinc-800 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
+                <ArrowRight className="w-4 h-4 text-white" />
+            </div>
+          </div>
+          
+          {/* Tech Specs */}
+          <div className="flex flex-wrap gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
+             {specs.map((s, i) => (
+                <span key={i} className="text-[10px] font-mono border border-zinc-700 bg-zinc-900/50 px-2 py-1 rounded text-zinc-400">
+                    {s}
+                </span>
+             ))}
+          </div>
+        </div>
+
+        {/* Industrial Accents */}
+        <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-100 transition-opacity duration-300">
+           <div className="w-8 h-8 border-t-2 border-r-2 border-industrial-accent rounded-tr-lg" />
+        </div>
+        <div className="absolute bottom-0 left-0 p-3 opacity-20 group-hover:opacity-100 transition-opacity duration-300">
+           <div className="w-8 h-8 border-b-2 border-l-2 border-industrial-accent rounded-bl-lg" />
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+const InventorySection = () => {
+  return (
+    <section id="products" className="py-24 bg-industrial-900">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="mb-16">
+          <motion.div 
+            initial={{ width: 0 }}
+            whileInView={{ width: 96 }}
+            viewport={{ once: true }}
+            className="h-1 bg-industrial-accent mb-6" 
+          />
+          <motion.h2 
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight"
+          >
+            CORE INVENTORY
+          </motion.h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 auto-rows-[350px] gap-6">
+          {/* Featured Inverter - Takes 2x2 space on Desktop */}
+          <ProductCard 
+            index={0}
+            title="LuxPower 6000XP" 
+            desc="Hybrid 6kW Inverter. Split-phase output, 8kW MPPT, and battery ready. The new standard for off-grid power." 
+            imgConfig={IMAGES.inverter}
+            specs={["6kW Output", "48V Battery", "IP65 Rated"]}
+            size="wide"
+          />
+          
+          <ProductCard 
+            index={1}
+            title="Enphase IQ8AC" 
+            desc="Microinverter for high-powered 72-cell modules. Grid-forming capable with sunlight backup." 
+            imgConfig={IMAGES.micro}
+            specs={["366VA Peak", "240V/208V", "25-Year Warranty"]}
+          />
+
+           <ProductCard 
+            index={2}
+            title="Structural Rail" 
+            desc="6061-T6 Aluminum. 14ft & 20ft lengths available for immediate pickup." 
+            imgConfig={IMAGES.rail}
+            specs={["6061-T6", "UL 2703", "Black/Mill"]}
+          />
+
+          <ProductCard 
+            index={3}
+            title="PV Wire (10 AWG)" 
+            desc="UL 4703 Photovoltaic Wire. 1000V/2000V rated. Red & Black spools." 
+            imgConfig={IMAGES.wire}
+            specs={["10 AWG", "1000V/2000V", "UL 4703"]}
+          />
+          
+          <ProductCard 
+            index={4}
+            title="Roof Attachments" 
+            desc="Comp shingle flashing and tile hooks. Triple-seal waterproof technology." 
+            imgConfig={IMAGES.mount}
+            specs={["Waterproof", "Lag Included", "Miami-Dade"]}
+          />
+          
+          <ProductCard 
+            index={5}
+            title="Universal Clamps" 
+            desc="Pre-assembled mid and end clamps. Integrated grounding pins." 
+            imgConfig={IMAGES.clamp}
+            specs={["30-50mm", "Pre-assembled", "Integrated Bond"]}
+          />
+
+          <ProductCard 
+            index={6}
+            title="Hardware & Grounding" 
+            desc="SS304 T-Bolts, flange nuts, and grounding lugs. Bulk kegs available." 
+            imgConfig={IMAGES.bolt}
+            specs={["SS304", "Corrosion Resistant", "M8/M10"]}
+          />
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// --- GEMINI AI FEATURE SECTION ---
+
+const DesignLab = () => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [resultImage, setResultImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      setResultImage(null); // Reset previous result
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      setResultImage(null);
+    }
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleGenerate = async () => {
+    if (!selectedFile || !prompt) return;
+
+    setIsProcessing(true);
+    try {
+      const base64 = await fileToBase64(selectedFile);
+      const editedImage = await editImageWithGemini(base64, prompt);
+      setResultImage(editedImage);
+    } catch (err) {
+      alert("Failed to process image. Please try again.");
+      console.error(err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <section id="lab" className="py-24 bg-black relative border-y border-zinc-800">
+      <div className="absolute inset-0 bg-zinc-900/50" />
+      <div className="max-w-7xl mx-auto px-6 relative z-10">
+        <div className="flex flex-col md:flex-row gap-12 items-start">
+          
+          <div className="md:w-1/3">
+            <div className="flex items-center gap-2 text-industrial-accent mb-4">
+              <Wand2 className="w-5 h-5" />
+              <span className="font-mono text-sm tracking-wider">BETA FEATURE</span>
+            </div>
+            <h2 className="text-4xl font-black text-white mb-6">SITE VISUALIZER</h2>
+            <p className="text-zinc-400 mb-8">
+              Need to show a client how a mount looks on their specific roof type? Or visualize wiring paths? Upload a site photo and use our AI to visualize adjustments before you install.
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">1. Upload Site Photo</label>
+                <div 
+                  className="border border-dashed border-zinc-700 bg-zinc-900/50 rounded-lg p-8 text-center cursor-pointer hover:border-industrial-accent hover:bg-zinc-800 transition-all"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                >
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    onChange={handleFileChange} 
+                    accept="image/*"
+                  />
+                  <Upload className="w-8 h-8 text-zinc-500 mx-auto mb-3" />
+                  <p className="text-sm text-zinc-400">
+                    {selectedFile ? selectedFile.name : "Click or drag to upload"}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">2. Describe Adjustment</label>
+                <textarea 
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="e.g., 'Add black solar rails to the roof' or 'Highlight the conduit path in red'"
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-white text-sm focus:border-industrial-accent focus:ring-1 focus:ring-industrial-accent outline-none min-h-[100px]"
+                />
+              </div>
+
+              <button 
+                onClick={handleGenerate}
+                disabled={!selectedFile || !prompt || isProcessing}
+                className={`w-full py-4 font-bold flex items-center justify-center gap-2 transition-all ${
+                  !selectedFile || !prompt || isProcessing 
+                    ? "bg-zinc-800 text-zinc-500 cursor-not-allowed" 
+                    : "bg-white text-black hover:bg-zinc-200"
+                }`}
+              >
+                {isProcessing ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> PROCESSING...</>
+                ) : (
+                  <><Zap className="w-4 h-4" /> GENERATE PREVIEW</>
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="md:w-2/3 w-full bg-zinc-900 rounded-lg border border-zinc-800 aspect-video flex items-center justify-center overflow-hidden relative">
+            {!previewUrl && !resultImage && (
+              <div className="text-center">
+                <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Box className="w-8 h-8 text-zinc-600" />
+                </div>
+                <p className="text-zinc-600 font-mono text-sm">PREVIEW AREA</p>
+              </div>
+            )}
+            
+            {previewUrl && !resultImage && !isProcessing && (
+              <img src={previewUrl} alt="Original" className="w-full h-full object-contain" />
+            )}
+
+            {isProcessing && (
+              <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20 backdrop-blur-sm">
+                <div className="w-16 h-1 bg-zinc-800 overflow-hidden rounded-full mb-4">
+                  <motion.div 
+                    className="h-full bg-industrial-accent"
+                    initial={{ width: "0%" }}
+                    animate={{ width: "100%" }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                </div>
+                <p className="text-zinc-400 font-mono text-xs animate-pulse">AI IS EDITING PIXELS...</p>
+              </div>
+            )}
+
+            {resultImage && (
+              <div className="relative w-full h-full group">
+                <img src={resultImage} alt="AI Result" className="w-full h-full object-contain" />
+                <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <a href={resultImage} download="eko-viz-result.png" className="bg-industrial-accent text-white p-3 rounded-full shadow-lg flex items-center gap-2 hover:bg-orange-600 transition-colors">
+                        <Download className="w-4 h-4" />
+                    </a>
+                </div>
+                <div className="absolute top-4 left-4 bg-black/50 backdrop-blur text-white text-xs px-2 py-1 rounded">
+                    AI GENERATED PREVIEW
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const BenefitsSection = () => {
+  return (
+    <section id="benefits" className="py-24 bg-industrial-900 overflow-hidden">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="grid md:grid-cols-2 gap-16 items-center">
+          <div>
+            <h2 className="text-4xl font-black text-white mb-8">WHY PROS BUY LOCAL</h2>
+            
+            <div className="space-y-8">
+              {[
+                { 
+                  icon: <Truck className="w-6 h-6 text-industrial-accent" />, 
+                  title: "No Freight Delays", 
+                  desc: "Don't let a missing pallet stop your job. Drive in, load up, and get back to the roof in under an hour." 
+                },
+                { 
+                  icon: <ShieldCheck className="w-6 h-6 text-industrial-accent" />, 
+                  title: "Verified Hardware", 
+                  desc: "We only stock UL-listed, code-compliant gear. No cheap knock-offs. Every bolt and rail is inspected." 
+                },
+                { 
+                  icon: <Clock className="w-6 h-6 text-industrial-accent" />, 
+                  title: "6AM - 6PM Will Call", 
+                  desc: "We run on contractor hours. Early pickup available so you can beat the midday sun." 
+                }
+              ].map((item, i) => (
+                <motion.div 
+                  key={i}
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.2 }}
+                  className="flex gap-4"
+                >
+                  <div className="w-12 h-12 rounded bg-zinc-800 flex items-center justify-center shrink-0 border border-zinc-700">
+                    {item.icon}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
+                    <p className="text-zinc-400 leading-relaxed">{item.desc}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="relative">
+             <div className="absolute inset-0 bg-industrial-accent/20 blur-[100px] rounded-full pointer-events-none" />
+             <div className="relative bg-zinc-900 border border-zinc-700 p-8 rounded-lg shadow-2xl">
+                <div className="flex justify-between items-center mb-6 border-b border-zinc-800 pb-4">
+                  <span className="text-sm font-mono text-zinc-500">ORDER #4921</span>
+                  <span className="text-green-500 text-sm font-bold flex items-center gap-1">● READY FOR PICKUP</span>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-zinc-800 rounded flex items-center justify-center p-2">
+                        <ImageWithFallback src={IMAGES.rail.src} fallback={IMAGES.rail.fallback} alt="rail" className="w-full h-full object-contain" />
+                    </div>
+                    <div>
+                      <div className="text-white font-bold">14ft Rail (Black)</div>
+                      <div className="text-xs text-zinc-500">Qty: 40</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-zinc-800 rounded flex items-center justify-center p-2">
+                        <ImageWithFallback src={IMAGES.bolt.src} fallback={IMAGES.bolt.fallback} alt="bolt" className="w-full h-full object-contain" />
+                    </div>
+                    <div>
+                      <div className="text-white font-bold">T-Bolts SS304</div>
+                      <div className="text-xs text-zinc-500">Qty: 100 (Box)</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-8 pt-6 border-t border-zinc-800 flex justify-between items-end">
+                  <div className="text-zinc-500 text-sm">Total Weight</div>
+                  <div className="text-white font-mono font-bold text-xl">480 LBS</div>
+                </div>
+             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const CTA = () => {
+  return (
+    <section className="py-32 bg-industrial-accent relative overflow-hidden flex items-center justify-center text-center">
+      <div className="absolute inset-0 bg-black/10" />
+      <motion.div 
+        className="relative z-10 max-w-4xl px-6"
+        initial={{ opacity: 0, scale: 0.9 }}
+        whileInView={{ opacity: 1, scale: 1 }}
+        viewport={{ once: true }}
+      >
+        <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter mb-8 drop-shadow-lg">
+          READY TO SCALE?
+        </h2>
+        <p className="text-white/90 text-xl mb-10 font-medium max-w-2xl mx-auto">
+          Join 850+ local installers who trust EKO for their hardware supply chain. Apply for net-30 terms today.
+        </p>
+        <button className="bg-white text-black text-lg px-10 py-5 font-black hover:bg-zinc-100 transition-colors shadow-2xl skew-x-[-6deg]">
+            <span className="skew-x-[6deg] inline-block">OPEN CONTRACTOR ACCOUNT</span>
+        </button>
+      </motion.div>
+    </section>
+  );
+};
+
+const Footer = () => {
+  return (
+    <footer className="bg-black py-12 border-t border-zinc-900">
+      <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 bg-industrial-accent skew-x-[-12deg]" />
+          <span className="text-lg font-bold text-white">EKO<span className="text-zinc-600">SOLAR</span></span>
+        </div>
+        <div className="text-zinc-600 text-sm">
+          © {new Date().getFullYear()} EKO Solar Supply. All rights reserved.
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+export default function App() {
+  return (
+    <main className="bg-industrial-900 min-h-screen text-zinc-200">
+      <Navbar />
+      <Hero />
+      <StatsBand />
+      <InventorySection />
+      <DesignLab />
+      <BenefitsSection />
+      <CTA />
+      <Footer />
+    </main>
+  );
+}
