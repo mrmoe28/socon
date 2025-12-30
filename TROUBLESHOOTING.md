@@ -137,3 +137,42 @@ Integrated Terminal fails to launch in Visual Studio Code, showing exit codes or
 - Windows 10 1809 (build 17763) or below uses legacy "winpty" backend - upgrade to Windows 1903 (build 18362) for "conpty" backend
 - If terminal requires administrator and VS Code isn't running as admin, terminal won't open
 
+## Vercel Build Error: Null Byte Character
+
+### Problem
+Build fails with error:
+```
+[vite:esbuild] Transform failed with 1 error:
+Expected ";" but found "\x00"
+```
+
+This error occurs when null byte characters (`\x00`) are present in source files, typically caused by:
+- File encoding issues
+- Copy-paste operations from certain sources
+- Git merge conflicts that weren't properly resolved
+- Binary data accidentally inserted into text files
+
+### Solution
+Remove null bytes from the affected file using PowerShell:
+
+```powershell
+$content = Get-Content App.tsx -Raw
+$content = $content -replace '\x00', ''
+$content = $content.TrimEnd()
+Set-Content App.tsx -Value $content -NoNewline
+```
+
+Or for any file:
+```powershell
+$content = Get-Content <filename> -Raw
+$content = $content -replace '\x00', ''
+$content = $content.TrimEnd()
+Set-Content <filename> -Value $content -NoNewline
+```
+
+### Prevention
+- Always use UTF-8 encoding for source files
+- Avoid copying code from binary files or certain web sources
+- Check files for null bytes before committing: `Get-Content file.tsx -Raw | Select-String '\x00'`
+- Use proper text editors that handle encoding correctly
+
