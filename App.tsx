@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, Fragment } from 'react';
-import { motion, useScroll, useTransform, useMotionValue, useSpring, AnimatePresence } from 'framer-motion';
+import { motion, useScroll, useTransform, useMotionValue, useSpring, AnimatePresence, useInView } from 'framer-motion';
 import { 
   ArrowRight, 
   Box, 
@@ -100,8 +100,8 @@ const useIntersectionObserver = (
   return isIntersecting && !hasAnimated;
 };
 
-// --- Animated Section Component ---
-interface AnimatedSectionProps {
+// --- Enhanced Scroll-Triggered Section Component ---
+interface ScrollSectionProps {
   children: React.ReactNode;
   className?: string;
   animationType?: 'fadeIn' | 'fadeInUp' | 'fadeInDown' | 'fadeInLeft' | 'fadeInRight' | 'scaleIn' | 'slideIn';
@@ -112,48 +112,57 @@ interface AnimatedSectionProps {
   once?: boolean;
 }
 
-const AnimatedSection = React.forwardRef<HTMLDivElement, AnimatedSectionProps>(({
+const ScrollSection = React.forwardRef<HTMLDivElement, ScrollSectionProps>(({
   children,
   className = '',
   animationType = 'fadeInUp',
   delay = 0,
   duration = 0.6,
   threshold = 0.1,
-  rootMargin = '0px',
+  rootMargin = '-100px',
   once = true,
 }, ref) => {
   const internalRef = useRef<HTMLDivElement>(null);
   const elementRef = (ref && typeof ref === 'object' && 'current' in ref) ? ref : internalRef;
-  const isVisible = useIntersectionObserver(elementRef as React.RefObject<HTMLElement>, { threshold, rootMargin, once });
+  const isInView = useInView(elementRef as React.RefObject<HTMLElement>, { 
+    once, 
+    amount: threshold,
+    margin: rootMargin as any
+  });
 
-  const animationClasses = {
-    fadeIn: 'opacity-0',
-    fadeInUp: 'opacity-0 translate-y-8',
-    fadeInDown: 'opacity-0 -translate-y-8',
-    fadeInLeft: 'opacity-0 -translate-x-8',
-    fadeInRight: 'opacity-0 translate-x-8',
-    scaleIn: 'opacity-0 scale-95',
-    slideIn: 'opacity-0 translate-x-12',
+  const animationVariants = {
+    fadeIn: { opacity: 0 },
+    fadeInUp: { opacity: 0, y: 60 },
+    fadeInDown: { opacity: 0, y: -60 },
+    fadeInLeft: { opacity: 0, x: -60 },
+    fadeInRight: { opacity: 0, x: 60 },
+    scaleIn: { opacity: 0, scale: 0.8 },
+    slideIn: { opacity: 0, x: 80 },
   };
 
-  const baseClass = animationClasses[animationType] || animationClasses.fadeInUp;
+  const variant = animationVariants[animationType] || animationVariants.fadeInUp;
 
   return (
-    <div
+    <motion.div
       ref={elementRef}
-      className={`transition-all ${baseClass} ${isVisible ? 'opacity-100 translate-y-0 translate-x-0 scale-100' : ''} ${className}`}
-      style={{
-        transitionDuration: `${duration}s`,
-        transitionDelay: `${delay}s`,
-        transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      initial={variant}
+      animate={isInView ? { opacity: 1, x: 0, y: 0, scale: 1 } : variant}
+      transition={{
+        duration,
+        delay,
+        ease: [0.4, 0, 0.2, 1],
       }}
+      className={className}
     >
       {children}
-    </div>
+    </motion.div>
   );
 });
 
-AnimatedSection.displayName = 'AnimatedSection';
+ScrollSection.displayName = 'ScrollSection';
+
+// Keep AnimatedSection for backward compatibility
+const AnimatedSection = ScrollSection;
 
 // --- Components ---
 
@@ -348,12 +357,27 @@ const ProductSlideshow = ({ style, className }: { style?: any; className?: strin
 };
 
 const Hero = () => {
+  const sectionRef = useRef<HTMLElement>(null);
   const { scrollY } = useScroll();
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start start", "end start"]
+  });
+  
   const y1 = useTransform(scrollY, [0, 500], [0, 200]);
   const rotate = useTransform(scrollY, [0, 500], [0, 15]);
+  
+  // Fade out hero as user scrolls - ensure visible on load
+  const opacity = useTransform(scrollYProgress, [0, 0.3, 0.7, 1], [1, 1, 0.8, 0.3]);
+  const scale = useTransform(scrollYProgress, [0, 0.3, 0.7, 1], [1, 1, 0.98, 0.95]);
 
   return (
-    <section className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-industrial-900">
+    <motion.section 
+      ref={sectionRef}
+      className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-industrial-900"
+      initial={{ opacity: 1 }}
+      style={{ opacity, scale }}
+    >
       {/* Background Grid */}
       <div className="absolute inset-0 bg-grid-pattern bg-[size:40px_40px] opacity-[0.05]" />
       
@@ -394,10 +418,9 @@ const Hero = () => {
            />
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 };
-
 
 // --- ENHANCED PRODUCT CARD ---
 const ProductCard = ({ 
@@ -560,12 +583,30 @@ const ProductCard = ({
 };
 
 const InventorySection = () => {
+  const sectionRef = useRef<HTMLElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
   const isLineVisible = useIntersectionObserver(lineRef, { threshold: 0.2 });
+  const isInView = useInView(sectionRef, { once: false, margin: "-100px" });
+  
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"]
+  });
+  
+  // Only apply subtle scroll effects, ensure visibility
+  const y = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [30, 0, 0, -30]);
 
   return (
-    <section id="products" className="py-24 bg-industrial-900">
+    <motion.section 
+      ref={sectionRef}
+      id="products" 
+      className="py-24 bg-industrial-900"
+      initial={{ opacity: 0, y: 30 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0.3, y: 30 }}
+      transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+      style={{ y }}
+    >
       <div className="max-w-7xl mx-auto px-2">
         <div className="mb-16">
           <div 
@@ -645,17 +686,36 @@ const InventorySection = () => {
           />
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 };
 
 
 const BenefitsSection = () => {
+  const sectionRef = useRef<HTMLElement>(null);
+  const isInView = useInView(sectionRef, { once: false, margin: "-100px" });
+  
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"]
+  });
+  
+  // Only apply subtle scroll effects, ensure visibility
+  const y = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [20, 0, 0, -20]);
+
   return (
-    <section id="benefits" className="py-32 bg-industrial-900 overflow-hidden min-h-screen flex items-center">
+    <motion.section 
+      ref={sectionRef}
+      id="benefits" 
+      className="pt-16 pb-32 bg-industrial-900 overflow-hidden min-h-screen flex items-center"
+      initial={{ opacity: 0, y: 20 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0.3, y: 20 }}
+      transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+      style={{ y }}
+    >
       <div className="max-w-7xl mx-auto px-6 w-full">
         <div className="grid md:grid-cols-2 gap-32 items-start">
-          <div className="py-12 flex flex-col justify-between min-h-[600px]">
+          <div className="py-12">
             <AnimatedSection
               animationType="fadeInLeft"
               delay={0.1}
@@ -665,7 +725,7 @@ const BenefitsSection = () => {
               <h2 className="text-5xl md:text-7xl font-black text-white mb-24 tracking-tight">WHY PROS BUY LOCAL</h2>
             </AnimatedSection>
             
-            <div className="space-y-24 flex-1 flex flex-col justify-between">
+            <div className="space-y-24">
               {[
                 { 
                   icon: <Truck className="w-7 h-7 text-white" />, 
@@ -676,7 +736,24 @@ const BenefitsSection = () => {
                   icon: <ShieldCheck className="w-7 h-7 text-white" />, 
                   title: "Verified Hardware", 
                   desc: "We only stock UL-listed, code-compliant gear. No cheap knock-offs. Every bolt and rail is inspected." 
-                },
+                }
+              ].map((item, i) => (
+                <div key={i} className="flex gap-6">
+                  <div className="w-16 h-16 rounded-lg bg-industrial-accent flex items-center justify-center shrink-0">
+                    {item.icon}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold text-white mb-3">{item.title}</h3>
+                    <p className="text-zinc-400 leading-relaxed text-lg">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="py-12 md:pt-[280px]">
+            <div className="space-y-24">
+              {[
                 { 
                   icon: <Clock className="w-7 h-7 text-white" />, 
                   title: "6AM - 6PM Will Call", 
@@ -700,86 +777,113 @@ const BenefitsSection = () => {
               ))}
             </div>
           </div>
-          
-          <AnimatedSection
-            animationType="fadeInRight"
-            delay={0.3}
-            duration={0.8}
-            threshold={0.2}
-            className="relative py-12 flex items-center justify-center min-h-[600px]"
-          >
-            <div className="relative bg-zinc-800/50 border border-zinc-700 p-10 rounded-xl shadow-2xl w-full">
-                <div className="flex justify-between items-center mb-8 pb-6">
-                  <span className="text-sm font-mono text-zinc-400">ORDER #4921</span>
-                  <span className="text-green-500 text-sm font-bold flex items-center gap-2">
-                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                    READY FOR PICKUP
-                  </span>
-                </div>
-                <div className="space-y-6">
-                    <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 bg-zinc-700 rounded border border-zinc-600 flex items-center justify-center p-2">
-                        <ImageWithFallback src={IMAGES.rail.src} fallback={IMAGES.rail.fallback} imageKey={IMAGES.rail.key} alt="rail" className="w-full h-full object-contain opacity-70" />
-                    </div>
-                    <div>
-                      <div className="text-white font-bold text-lg">14ft Rail (Black)</div>
-                      <div className="text-xs text-zinc-400 mt-1">Qty: 40</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 bg-zinc-700 rounded border border-zinc-600 flex items-center justify-center p-2">
-                        <ImageWithFallback src={IMAGES.bolt.src} fallback={IMAGES.bolt.fallback} imageKey={IMAGES.bolt.key} alt="bolt" className="w-full h-full object-contain opacity-70" />
-                    </div>
-                    <div>
-                      <div className="text-white font-bold text-lg">T-Bolts SS304</div>
-                      <div className="text-xs text-zinc-400 mt-1">Qty: 100 (Box)</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-10 pt-8 border-t border-zinc-700 flex justify-between items-center">
-                  <div className="text-zinc-400 text-base">Total Weight</div>
-                  <div className="text-white font-mono font-bold text-2xl">480 LBS</div>
-                </div>
-                <div className="mt-8 pt-8 border-t border-zinc-700">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-zinc-400 text-base">Pickup Window</span>
-                    <span className="text-white font-bold text-base">Today 2:00 PM - 6:00 PM</span>
-                  </div>
-                  <button className="w-full mt-6 bg-industrial-accent text-black text-base font-bold px-6 py-3 hover:bg-orange-600 transition-colors">
-                    VIEW ORDER DETAILS
-                  </button>
-                </div>
-             </div>
-          </AnimatedSection>
         </div>
         
+        <AnimatedSection
+          animationType="fadeInRight"
+          delay={0.3}
+          duration={0.8}
+          threshold={0.2}
+          className="relative py-12 flex items-center justify-center min-h-[600px]"
+        >
+          <div className="relative bg-zinc-800/50 border border-zinc-700 p-10 rounded-xl shadow-2xl w-full">
+            <div className="flex justify-between items-center mb-8 pb-6">
+              <span className="text-sm font-mono text-zinc-400">ORDER #4921</span>
+              <span className="text-green-500 text-sm font-bold flex items-center gap-2">
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                READY FOR PICKUP
+              </span>
+            </div>
+            <div className="space-y-6">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 bg-zinc-700 rounded border border-zinc-600 flex items-center justify-center p-2">
+                  <ImageWithFallback src={IMAGES.rail.src} fallback={IMAGES.rail.fallback} imageKey={IMAGES.rail.key} alt="rail" className="w-full h-full object-contain opacity-70" />
+                </div>
+                <div>
+                  <div className="text-white font-bold text-lg">14ft Rail (Black)</div>
+                  <div className="text-xs text-zinc-400 mt-1">Qty: 40</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 bg-zinc-700 rounded border border-zinc-600 flex items-center justify-center p-2">
+                  <ImageWithFallback src={IMAGES.bolt.src} fallback={IMAGES.bolt.fallback} imageKey={IMAGES.bolt.key} alt="bolt" className="w-full h-full object-contain opacity-70" />
+                </div>
+                <div>
+                  <div className="text-white font-bold text-lg">T-Bolts SS304</div>
+                  <div className="text-xs text-zinc-400 mt-1">Qty: 100 (Box)</div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-10 pt-8 border-t border-zinc-700 flex justify-between items-center">
+              <div className="text-zinc-400 text-base">Total Weight</div>
+              <div className="text-white font-mono font-bold text-2xl">480 LBS</div>
+            </div>
+            <div className="mt-8 pt-8 border-t border-zinc-700">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-zinc-400 text-base">Pickup Window</span>
+                <span className="text-white font-bold text-base">Today 2:00 PM - 6:00 PM</span>
+              </div>
+              <button className="w-full mt-6 bg-industrial-accent text-black text-base font-bold px-6 py-3 hover:bg-orange-600 transition-colors">
+                VIEW ORDER DETAILS
+              </button>
+            </div>
+          </div>
+        </AnimatedSection>
+        
         {/* Additional Stats Row */}
-        <div className="mt-32 grid grid-cols-2 md:grid-cols-4 gap-16 pt-20 border-t border-zinc-800">
-          <div className="text-center py-6">
-            <div className="text-4xl md:text-5xl font-black text-industrial-accent mb-3">15+</div>
-            <div className="text-zinc-400 text-sm font-mono">YEARS ACTIVE</div>
-          </div>
-          <div className="text-center py-6">
-            <div className="text-4xl md:text-5xl font-black text-industrial-accent mb-3">850+</div>
-            <div className="text-zinc-400 text-sm font-mono">CONTRACTORS</div>
-          </div>
-          <div className="text-center py-6">
-            <div className="text-4xl md:text-5xl font-black text-industrial-accent mb-3">4.2K</div>
-            <div className="text-zinc-400 text-sm font-mono">SKUS IN STOCK</div>
-          </div>
-          <div className="text-center py-6">
-            <div className="text-4xl md:text-5xl font-black text-industrial-accent mb-3">&lt; 2HR</div>
-            <div className="text-zinc-400 text-sm font-mono">PICKUP TIME</div>
-          </div>
-        </div>
+        <motion.div 
+          className="mt-32 grid grid-cols-2 md:grid-cols-4 gap-16 pt-20 border-t border-zinc-800"
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
+        >
+          {[
+            { value: "15+", label: "YEARS ACTIVE" },
+            { value: "850+", label: "CONTRACTORS" },
+            { value: "4.2K", label: "SKUS IN STOCK" },
+            { value: "< 2HR", label: "PICKUP TIME" }
+          ].map((stat, i) => (
+            <motion.div 
+              key={i}
+              className="text-center py-6"
+              initial={{ opacity: 0, scale: 0.8 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: i * 0.1, ease: [0.4, 0, 0.2, 1] }}
+            >
+              <div className="text-4xl md:text-5xl font-black text-industrial-accent mb-3">{stat.value}</div>
+              <div className="text-zinc-400 text-sm font-mono">{stat.label}</div>
+            </motion.div>
+          ))}
+        </motion.div>
       </div>
-    </section>
+    </motion.section>
   );
 };
 
 const CTA = () => {
+  const sectionRef = useRef<HTMLElement>(null);
+  const isInView = useInView(sectionRef, { once: false, margin: "-100px" });
+  
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"]
+  });
+  
+  // Only apply subtle scroll effects, ensure visibility
+  const y = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [20, 0, 0, -20]);
+
   return (
-    <section className="py-24 bg-industrial-accent relative overflow-hidden" id="cta-section">
+    <motion.section 
+      ref={sectionRef}
+      className="py-24 bg-industrial-accent relative overflow-hidden" 
+      id="cta-section"
+      initial={{ opacity: 0, y: 20 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0.3, y: 20 }}
+      transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+      style={{ y }}
+    >
       <div className="absolute inset-0 bg-black/10" />
       
       <div className="max-w-4xl mx-auto px-6 relative z-10 text-center">
@@ -800,13 +904,22 @@ const CTA = () => {
           </button>
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 };
 
 const Footer = () => {
+  const footerRef = useRef<HTMLElement>(null);
+  const isInView = useInView(footerRef, { once: true, margin: "-100px" });
+
   return (
-    <footer className="bg-black py-12 border-t border-zinc-900">
+    <motion.footer 
+      ref={footerRef}
+      className="bg-black py-12 border-t border-zinc-900"
+      initial={{ opacity: 0, y: 40 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
+      transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+    >
       <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 bg-industrial-accent skew-x-[-12deg]" />
@@ -816,7 +929,7 @@ const Footer = () => {
           © {new Date().getFullYear()} SOCON DISTRIBUTORS. All rights reserved.
         </div>
       </div>
-    </footer>
+    </motion.footer>
   );
 };
 
