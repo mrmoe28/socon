@@ -1,0 +1,139 @@
+# Troubleshooting Guide
+
+## Tailwind CSS CDN Warning Fix
+
+### Problem
+Console warning: "cdn.tailwindcss.com should not be used in production"
+
+### Solution
+Replace Tailwind CDN with proper installation:
+
+1. **Install dependencies:**
+   ```bash
+   npm install -D tailwindcss postcss autoprefixer
+   ```
+
+2. **Create `tailwind.config.js`** with your custom theme configuration
+
+3. **Create `postcss.config.js`** to process Tailwind CSS
+
+4. **Create CSS file** (`src/index.css`) with Tailwind directives:
+   ```css
+   @tailwind base;
+   @tailwind components;
+   @tailwind utilities;
+   ```
+
+5. **Import CSS in entry point** (`index.tsx`):
+   ```typescript
+   import './src/index.css';
+   ```
+
+6. **Remove CDN script** from `index.html` and move inline styles to CSS file
+
+## Vite WebSocket Connection Errors
+
+### Problem
+WebSocket connection to 'ws://localhost:3000/' failed
+
+### Solution
+Ensure proper HMR (Hot Module Replacement) configuration in `vite.config.ts`:
+
+```typescript
+server: {
+  port: 3000,
+  host: '0.0.0.0',
+  hmr: {
+    protocol: 'ws',
+    host: 'localhost',
+  },
+}
+```
+
+This explicitly configures the WebSocket protocol for HMR connections.
+
+### Additional Notes
+- Make sure the dev server is running: `npm run dev`
+- If port 3000 is in use, Vite will automatically try the next available port
+- WebSocket errors can also occur if the server restarts - this is normal during development
+
+## VS Code Terminal Launch Issues
+
+### Problem
+Integrated Terminal fails to launch in Visual Studio Code, showing exit codes or error messages.
+
+### General Troubleshooting Steps
+
+1. **Check Terminal Settings**
+   - Review `terminal.integrated` settings in VS Code Settings (File > Preferences > Settings)
+   - Key settings to check:
+     - `terminal.integrated.defaultProfile.{platform}` - Default shell profile
+     - `terminal.integrated.profiles.{platform}` - Shell profiles and paths
+     - `terminal.integrated.cwd` - Current working directory
+     - `terminal.integrated.env.{platform}` - Environment variables
+     - `terminal.integrated.inheritEnv` - Environment inheritance
+   - Use `@modified` filter in Settings editor to see changed settings
+   - Edit `settings.json` directly via Command Palette: **Preferences: Open User Settings (JSON)**
+
+2. **Test Shell Directly**
+   - Run your shell outside VS Code from external terminal/command prompt
+   - Exit codes come from the shell, not VS Code - search for your shell and exit code online
+
+3. **Update VS Code and Shell**
+   - Use the latest VS Code version (Help > About)
+   - Install the latest version of your shell
+   - Update your operating system if on an older build
+
+4. **Enable Trace Logging**
+   - Enable trace logging to capture terminal launch logs
+   - Logs reveal all arguments used to create the terminal process
+   - Bad shell names, arguments, or environment variables will be visible
+
+### Common Windows Issues
+
+#### Compatibility Mode
+- **Problem**: Terminal breaks when compatibility mode is enabled
+- **Solution**: Right-click VS Code executable > Properties > Compatibility tab > Uncheck "Run this program in compatibility mode"
+
+#### WSL Terminal Exit Code 1
+- **Problem**: Terminal exits with code 1 when WSL is default shell
+- **Solution**:
+  - Open PowerShell and run: `wslconfig.exe /l`
+  - Verify a valid distribution has **(default)** next to it
+  - Set default: `wslconfig.exe /setdefault "distributionNameAsShownInList"`
+  - Note: 'docker-desktop-data' is not a valid distribution
+
+#### Native Exception Error
+- **Problem**: Anti-virus blocking terminal process creation
+- **Solution**: Exclude these files from anti-virus scanning:
+  ```
+  {install_path}\resources\app\node_modules.asar.unpacked\node-pty\build\Release\winpty.dll
+  {install_path}\resources\app\node_modules.asar.unpacked\node-pty\build\Release\winpty-agent.exe
+  {install_path}\resources\app\node_modules.asar.unpacked\node-pty\build\Release\conpty.node
+  {install_path}\resources\app\node_modules.asar.unpacked\node-pty\build\Release\conpty_console_list.node
+  ```
+
+#### Exit Code 259 (STILL_ACTIVE)
+- **Problem**: Terminal can't start new process (e.g., PowerShell.exe)
+- **Solution**:
+  - Kill unused programs/processes that might be keeping terminal shell active
+  - Check if anti-virus software is interfering
+
+#### Exit Code 3221225786
+- **Problem**: Legacy console mode enabled in conhost
+- **Solution**:
+  - Open cmd.exe from Start menu
+  - Right-click title bar > Properties > Options tab
+  - Uncheck "Use legacy console"
+
+### Additional Resources
+- [VS Code Terminal Troubleshooting Guide](https://code.visualstudio.com/docs/supporting/troubleshoot-terminal-launch)
+- Search for your specific shell and exit code online
+- Check your shell's issue repository (e.g., [WSL issues](https://github.com/microsoft/WSL/issues))
+- Report issues via Help > Report Issue in VS Code
+
+### Notes
+- Exit codes are returned from the shell process, not generated by VS Code
+- Windows 10 1809 (build 17763) or below uses legacy "winpty" backend - upgrade to Windows 1903 (build 18362) for "conpty" backend
+- If terminal requires administrator and VS Code isn't running as admin, terminal won't open
+
